@@ -242,6 +242,37 @@ def check_env():
     return True
 
 
+SHA256_MISMATCH = "SHA256_MIS_MATCH"
+
+def check_has_prebuilt_klib():
+    KLIB_SHA256 = "fa3380ecca1b3e5fa4c129617b0a6d07102e1966e9c77e49d21947572ef218ec"
+    minirv_klib = NEMU.YSYX_HOME / "abstract-machine"/"klib" / "build" / "klib-minirv-npc.a"
+    if not minirv_klib.exists():
+        return False
+    sha256sum = subprocess.run(
+    ["sha256sum", minirv_klib],
+        capture_output=True,
+        text=True
+    )
+    assert sha256sum.returncode == 0, f"sha256sum failed: {sha256sum.stderr}"
+    if sha256sum.stdout.split()[0] == KLIB_SHA256:
+        return True
+    return SHA256_MISMATCH
+
+
+def check_has_pa1_branch():
+    git_branches = subprocess.run(
+        ["git", "branch"],
+        cwd=NEMU.YSYX_HOME,
+        capture_output=True,
+        text=True
+    )
+    assert git_branches.returncode == 0, f"git branch failed: {git_branches.stderr}"
+    if "pa1" in git_branches.stdout:
+        return True
+    return False
+
+
 def check_exit_gracefully():
     ret,_  = NEMU.run(["q"])
     if ret != 0:
@@ -307,6 +338,9 @@ def check_gen_expr():
 def info(message: str):
     print(f"{ANSI_FG_BLUE}{message}{ANSI_NONE}")
 
+def warn(message: str):
+    print(f"{ANSI_FG_YELLOW}{message}{ANSI_NONE}")
+
 def prompt_student_info():
     info("所有测试均通过，请输入以下信息：")
     try:
@@ -335,6 +369,28 @@ def main():
     if not check_env():
         print(f"{ANSI_FG_RED}NEMU_HOME is not set or invalid{ANSI_NONE}")
         return 1
+
+
+    """
+    利用讲义的供的预编译klib以及pa1的支的存在与否判断讲义版本
+    - 若存在klib且不存在pa1, 则显然为2607版本讲义, 直接跳过NEMU检查
+    - 若存在klib但存在pa1, 一般认为成2607版本讲义, 但仍提供检查的选项
+    - 若不存在klib, 则显然是更早的本的讲义, 应当进行NEMU检查
+    """
+    has_pa1_branch = check_has_pa1_branch()
+    has_prebuilt_klib = check_has_prebuilt_klib()
+    if has_prebuilt_klib:
+        if has_prebuilt_klib == SHA256_MISMATCH:
+            warn("本地存在预编译的klib，但其SHA256校验失败，可能是预编译的版本发生变化，请联系助教更新脚本。")
+        if not has_pa1_branch:
+            info("检测到预编译klib, 推测为2607版本讲义，无需进行NEMU检查，跳过")
+            return 0
+        else:
+            info("检测到预编译klib，但存在PA1分支，是否跳过nemu检查[Y/n]")
+            answer = input().strip().lower()
+            if answer not in ("no", "n"):
+                return 0
+            info("将进行NEMU检查")
 
     NEMU.create_tracer_record("run pretest")
     if NEMU.TRACER_COMMIT_ID is None:
