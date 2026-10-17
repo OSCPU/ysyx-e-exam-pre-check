@@ -35,10 +35,14 @@
 
 脚本本身不要求放置在 `NEMU_HOME` 目录下。只要正确设置了 `NEMU_HOME` 环境变量，脚本放在任意位置都可以运行。
 
-可直接通过以下命令在线运行脚本：
+可直接通过以下命令中的一条在线运行脚本：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/OSCPU/ysyx-e-exam-pre-check/master/nemu_check.py | python3
+# bash/zsh (Recommended)
+python3 <(curl -fsSL https://raw.githubusercontent.com/OSCPU/ysyx-e-exam-pre-check/master/nemu_check.py)
+
+# 如果上述命令不支持
+python3 -c "$(curl -fsSL https://raw.githubusercontent.com/OSCPU/ysyx-e-exam-pre-check/master/nemu_check.py)"
 ```
 
 也可以先将脚本下载到本地，再通过 `python3` 运行：
